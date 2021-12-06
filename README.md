@@ -1,5 +1,5 @@
 # LDB
-A simple Lua debugger written in Lua.
+Make Lua debugging easier.
 
 # Installation
 ## OpenOS
