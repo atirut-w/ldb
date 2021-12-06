@@ -1,5 +1,5 @@
 # LDB
-A simple Lua debugger written in Lua. Currently only tested on OpenComputer's OpenOS.
+A simple Lua debugger written in Lua.
 
 # Installation
 ## OpenOS
@@ -20,4 +20,4 @@ Run `ldb [program]` where `[program]` is the Lua script you want to debug.
 - `source [line]` - Prints the source code of loaded script or a specific line.
 - `breakpoint <line> [statement][, statement ...]` - Toggle a breakpoint at a specific line. If a statement is provided, it will be used as the breakpoint's message. It can be a variable name, a literal, or any Lua expression.
 - `breakpoints` - Prints all breakpoints.
-
+- `quit` - Exits the debugger.
