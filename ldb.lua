@@ -49,22 +49,26 @@ local function continue(...)
                 if #reason.message == 1 then
                     print(reason.message[1])
                 else
-                    io.write("{")
-                    for i, v in ipairs(reason.message) do
-                        switch(type(v), {
-                            default = function()
-                                io.write(v)
-                            end,
-                            string = function()
-                                io.write(("%q"):format(v))
-                            end,
-                        })
-
-                        if i < #reason.message then
-                            io.write(", ")
+                    ---@param table table<any, any>
+                    local function dump(table)
+                        io.write("{")
+                        for i,v in ipairs(table) do
+                            switch(type(v), {
+                                string = function()
+                                    io.write(("%q"):format(v))
+                                end,
+                                table = function()
+                                    dump(v)
+                                end,
+                            })
+                            if i < #table then
+                                io.write(", ")
+                            end
                         end
+                        print("}")
                     end
-                    print("}")
+
+                    dump(reason.message)
                 end
             end
         end
