@@ -44,30 +44,33 @@ local function continue(...)
         else
             print("Breakpoint reached at line " .. reason.line)
             if #reason.message > 0 then
-                io.write("Breakpoint value: ")
-
-                if #reason.message == 1 then
-                    print(reason.message[1])
-                else
-                    ---@param table table<any, any>
-                    local function dump(table)
-                        io.write("{")
-                        for i,v in ipairs(table) do
-                            switch(type(v), {
-                                string = function()
-                                    io.write(("%q"):format(v))
-                                end,
-                                table = function()
-                                    dump(v)
-                                end,
-                            })
-                            if i < #table then
-                                io.write(", ")
-                            end
+                ---@param table table<any, any>
+                local function dump(table)
+                    io.write("{")
+                    for i,v in ipairs(table) do
+                        switch(type(v), {
+                            string = function()
+                                io.write(("%q"):format(v))
+                            end,
+                            table = function()
+                                dump(v)
+                            end,
+                        })
+                        if i < #table then
+                            io.write(", ")
                         end
-                        print("}")
                     end
+                    print("}")
+                end
 
+                io.write("Breakpoint value: ")
+                if #reason.message == 1 then
+                    if type(reason.message[1]) == "table" then
+                        dump(reason.message[1])
+                    else
+                        print(reason.message[1])
+                    end
+                else
                     dump(reason.message)
                 end
             end
