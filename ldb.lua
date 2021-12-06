@@ -21,6 +21,8 @@ local program_thread
 local running = false
 ---@type table<number, boolean>
 local breakpoints = {}
+---@type table<number, string>
+local bp_messages = {}
 
 if args[1] then
     local file = io.open(args[1])
@@ -41,6 +43,30 @@ local function continue(...)
             print(("Program finished. Return code %d"):format(reason or 0))
         else
             print("Breakpoint reached at line " .. reason.line)
+            if #reason.message > 0 then
+                io.write("Breakpoint value: ")
+
+                if #reason.message == 1 then
+                    print(reason.message[1])
+                else
+                    io.write("{")
+                    for i, v in ipairs(reason.message) do
+                        switch(type(v), {
+                            default = function()
+                                io.write(v)
+                            end,
+                            string = function()
+                                io.write(("%q"):format(v))
+                            end,
+                        })
+
+                        if i < #reason.message then
+                            io.write(", ")
+                        end
+                    end
+                    print("}")
+                end
+            end
         end
     else
         running = false
@@ -77,11 +103,18 @@ while true do
                 print("Invalid line number")
                 return
             end
-            breakpoints[line] = not breakpoints[line]
+            local msg = table.concat(tokens, " ")
+            if msg == "" then
+                bp_messages[line] = nil
+                breakpoints[line] = not breakpoints[line]
+            else
+                bp_messages[line] = msg
+                breakpoints[line] = true
+            end
         end,
         ["breakpoints"] = function()
             for line, enabled in pairs(breakpoints) do
-                print(("%d: %s"):format(line, enabled and "enabled" or "disabled"))
+                print(("%d: %s %s"):format(line, enabled and "enabled" or "disabled", bp_messages[line] or ""))
             end
         end,
         ["run"] = function()
@@ -102,7 +135,7 @@ while true do
                 local offset = 0
                 for breakpoint, enabled in pairs(breakpoints) do
                     if enabled then
-                        table.insert(lines, breakpoint + offset, "coroutine.yield({type=\"breakpoint\", line=" .. breakpoint .. "})")
+                        table.insert(lines, breakpoint + offset, "coroutine.yield({type=\"breakpoint\", line=" .. breakpoint .. ", message={" .. (bp_messages[breakpoint] or "") .. "}})")
                         offset = offset + 1
                     end
                 end
