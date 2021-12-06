@@ -1,0 +1,9 @@
+default:
+	@echo "What do you expect me to do?"
+
+install:
+	@mkdir /usr/bin 2>/dev/null
+	@cp ldb.lua /usr/bin/
+
+uninstall:
+	@rm /usr/bin/ldb.lua
