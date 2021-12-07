@@ -2,7 +2,7 @@ local args = {...}
 
 if ({["-h"] = true, ["--help"] = true})[args[1]] then
     print("Usage: ldb [program]")
-    os.exit(0)
+    os.exit(true)
 end
 
 --- NOTE: I haveabsolutely no idea why I don't see people use this kind of lookup switch case in Lua.
@@ -53,7 +53,7 @@ register_command("help", "Prints this help message", "[command]", function(comma
 end)
 
 register_command("quit", "Quits the debugger", "", function()
-    os.exit(0)
+    os.exit(true)
 end)
 
 -- Core debugging commands are registered here.
