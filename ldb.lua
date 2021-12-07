@@ -120,7 +120,7 @@ do
 
         for line, enabled in pairs(breakpoints) do
             if enabled then
-                lines[line] = lines[line] .. "coroutine.yield({line=" .. line .. ", message={" .. (bp_messages[line] or "") .. "}});"
+                lines[line] = lines[line] .. ";coroutine.yield({line=" .. line .. ", message={" .. (bp_messages[line] or "") .. "}});"
             end
         end
 
