@@ -36,6 +36,12 @@ print(str1 .. str2)
 ## Running a script
 After loading the script, you can run it by simply using the `run` command. You can give arguments to the script by putting  them after the `run` command, i.e. `run arg1 arg2`.
 
+```
+(ldb) run
+Hello, World!
+Program finished
+```
+
 ## Debugging it
 As an example, let's set a breakpoint right on line 1 by using the `bp` command. This command toggles the breakpoint on the line you specify.
 
