@@ -92,7 +92,7 @@ do
         print("Program loaded")
     end)
 
-    register_command("bp", "Toogle breakpoint", "<line> [message]", function(line, ...)
+    register_command("bp", "Toogle breakpoint or set breakpoint message", "<line> [message]", function(line, ...)
         line = tonumber(line)
         if ... then
             breakpoints[line] = true
