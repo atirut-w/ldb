@@ -178,7 +178,7 @@ do
             if success then
                 if coroutine.status(program_thread) == "dead" then
                     run_command("stop")
-                    print(("Program finished. Return code %d"):format(result or 0))
+                    print("Program finished")
                 else
                     print("Breakpoint reached at line " .. result.line)
                     if #result.message > 0 then
