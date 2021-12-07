@@ -12,6 +12,25 @@ local function switch(value, cases)
     return (cases[value] or (cases.default or function() end))()
 end
 
+---@param t table
+local function dump(t)
+    io.write("{")
+    for i,v in ipairs(t) do
+        switch(type(v), {
+            string = function()
+                io.write(("%q"):format(v))
+            end,
+            table = function()
+                dump(v)
+            end,
+        })
+        if i < #t then
+            io.write(", ")
+        end
+    end
+    print("}")
+end
+
 ---@class DebugCommand
 ---@field description string
 ---@field args string
@@ -154,25 +173,6 @@ do
                 else
                     print("Breakpoint reached at line " .. result.line)
                     if #result.message > 0 then
-                        ---@param table table<any, any>
-                        local function dump(table)
-                            io.write("{")
-                            for i,v in ipairs(table) do
-                                switch(type(v), {
-                                    string = function()
-                                        io.write(("%q"):format(v))
-                                    end,
-                                    table = function()
-                                        dump(v)
-                                    end,
-                                })
-                                if i < #table then
-                                    io.write(", ")
-                                end
-                            end
-                            print("}")
-                        end
-        
                         io.write("Breakpoint value: ")
                         if #result.message == 1 then
                             if type(result.message[1]) == "table" then
