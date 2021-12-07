@@ -1,84 +1,203 @@
--- Lua debugger, written in Lua.
-
 local args = {...}
 
 if ({["-h"] = true, ["--help"] = true})[args[1]] then
-    print("Usage: ldb [program] [arguments]")
-    os.exit(0)
+    print("Usage: ldb [program]")
+    os.exit(true)
 end
 
+--- NOTE: I haveabsolutely no idea why I don't see people use this kind of lookup switch case in Lua.
 ---@param value any
 ---@param cases table<any, function>
 local function switch(value, cases)
     return (cases[value] or (cases.default or function() end))()
 end
 
----@type string
-local program
----@type thread
-local program_thread
----@type boolean
-local running = false
----@type table<number, boolean>
-local breakpoints = {}
----@type table<number, string>
-local bp_messages = {}
+---@class DebugCommand
+---@field description string
+---@field args string
+---@field handler function
 
-if args[1] then
-    local file = io.open(args[1])
-    if not file then
-        print("Program not found: " .. args[1])
-        os.exit(1)
-    end
-    file:close()
-    program = args[1]
+---@type table<string, DebugCommand>
+local commands = {}
+
+local function register_command(name, description, args, handler)
+    commands[name] = {
+        description = description,
+        args = args,
+        handler = handler
+    }
 end
 
-local function continue(...)
-    local success, reason = coroutine.resume(program_thread, ...)
+local function run_command(name, ...)
+    if not commands[name] then
+        print("Unknown command: " .. name)
+        return
+    end
+    commands[name].handler(...)
+end
 
-    if success then
-        if coroutine.status(program_thread) == "dead" then
-            running = false
-            print(("Program finished. Return code %d"):format(reason or 0))
+register_command("help", "Prints this help message", "[command]", function(command)
+    if command then
+        if not commands[command] then
+            print("Unknown command: " .. command)
+            return
+        end
+        print(commands[command].description)
+        print("Usage: " .. command .. " " .. commands[command].args)
+    else
+        print("Available commands:")
+        for name, command in pairs(commands) do
+            print("  " .. name .. " - " .. command.description)
+        end
+    end
+end)
+
+register_command("quit", "Quits the debugger", "", function()
+    os.exit(true)
+end)
+
+-- Core debugging commands are registered here.
+do
+    ---@type string
+    local program_name = nil
+    ---@type table<integer, string>
+    local program_source = {}
+    ---@type thread
+    local program_thread = nil
+    ---@type table<integer, boolean>
+    local breakpoints = {}
+    ---@type string<integer, string>
+    local bp_messages = {}
+
+    register_command("load", "Loads a program", "<program>", function(path)
+        if not path then
+            print("Load what?")
+            return
+        end
+
+        local file = io.open(path, "r")
+        if not file then
+            print("Program not found")
+            return
+        end
+
+        program_name = path
+        program_source = {}
+        breakpoints = {}
+        bp_messages = {}
+
+        program_source = file:read("a")
+        file:close()
+        program_name = path
+        print("Program loaded")
+    end)
+
+    register_command("bp", "Toogle breakpoint or set breakpoint message", "<line> [message]", function(line, ...)
+        line = tonumber(line)
+        if ... then
+            breakpoints[line] = true
+            bp_messages[line] = table.concat({...})
         else
-            print("Breakpoint reached at line " .. reason.line)
-            if #reason.message > 0 then
-                ---@param table table<any, any>
-                local function dump(table)
-                    io.write("{")
-                    for i,v in ipairs(table) do
-                        switch(type(v), {
-                            string = function()
-                                io.write(("%q"):format(v))
-                            end,
-                            table = function()
-                                dump(v)
-                            end,
-                        })
-                        if i < #table then
-                            io.write(", ")
-                        end
-                    end
-                    print("}")
-                end
+            breakpoints[line] = not breakpoints[line]
+        end
+    end)
 
-                io.write("Breakpoint value: ")
-                if #reason.message == 1 then
-                    if type(reason.message[1]) == "table" then
-                        dump(reason.message[1])
-                    else
-                        print(reason.message[1])
-                    end
-                else
-                    dump(reason.message)
-                end
+    register_command("list_bp", "List breakpoints", "", function()
+        for line, enabled in pairs(breakpoints) do
+            print(("%d: %s %s"):format(line, enabled and "enabled" or "disabled", bp_messages[line] or ""))
+        end
+    end)
+
+    register_command("run", "Run the currently loaded program", "[args]", function(...)
+        if not program_source then
+            print("No program loaded")
+        elseif program_thread then
+            print("Program already running")
+        end
+        
+        local lines = {}
+        for line in program_source:gmatch("[^\r\n]+") do
+            table.insert(lines, line)
+        end
+
+        for line, enabled in pairs(breakpoints) do
+            if enabled then
+                lines[line] = lines[line] .. ";coroutine.yield({line=" .. line .. ", message={" .. (bp_messages[line] or "") .. "}});"
             end
         end
-    else
-        running = false
-        print(reason)
-    end
+
+        program_thread = coroutine.create(load(table.concat(lines, "\n"), program_name, "t", _G))
+        run_command("continue", ...)
+    end)
+
+    register_command("stop", "Stop the currently running program", "", function()
+        if not program_thread then
+            print("No program running")
+        else
+            program_thread = nil
+        end
+    end)
+
+    register_command("continue", "Continue the currently running program", "", function(...)
+        -- The arguments for this command are only used internally send arguments to the program.
+        -- Point: no need to document this command's arguments in the help.
+
+        if not program_thread then
+            print("No program running")
+        else
+            local success, result = coroutine.resume(program_thread, ...)
+
+            if success then
+                if coroutine.status(program_thread) == "dead" then
+                    run_command("stop")
+                    print(("Program finished. Return code %d"):format(result or 0))
+                else
+                    print("Breakpoint reached at line " .. result.line)
+                    if #result.message > 0 then
+                        ---@param table table<any, any>
+                        local function dump(table)
+                            io.write("{")
+                            for i,v in ipairs(table) do
+                                switch(type(v), {
+                                    string = function()
+                                        io.write(("%q"):format(v))
+                                    end,
+                                    table = function()
+                                        dump(v)
+                                    end,
+                                })
+                                if i < #table then
+                                    io.write(", ")
+                                end
+                            end
+                            print("}")
+                        end
+        
+                        io.write("Breakpoint value: ")
+                        if #result.message == 1 then
+                            if type(result.message[1]) == "table" then
+                                dump(result.message[1])
+                            else
+                                print(result.message[1])
+                            end
+                        elseif #result.message > 1 then
+                            dump(result.message)
+                        end
+                    end
+                end
+            else
+                run_command("stop")
+                print("Program crashed: " .. result)
+            end
+        end
+    end)
+end
+
+print([[LDB Lua debugger
+Type "help" for help]])
+
+if args[1] then
+    run_command("load", args[1])
 end
 
 while true do
@@ -90,116 +209,7 @@ while true do
         table.insert(tokens, token)
     end
 
-    local function pop()
-        return table.remove(tokens, 1)
+    if #tokens > 0 then
+        run_command(table.remove(tokens, 1), table.unpack(tokens))
     end
-
-    switch(pop(), {
-        ["default"] = function()
-            print("Unknown command")
-        end,
-        ["quit"] = function ()
-            os.exit(0)
-        end,
-        ["load"] = function()
-            program = pop()
-        end,
-        ["breakpoint"] = function()
-            local line = tonumber(pop())
-            if not line then
-                print("Invalid line number")
-                return
-            end
-            local msg = table.concat(tokens, " ")
-            if msg == "" then
-                bp_messages[line] = nil
-                breakpoints[line] = not breakpoints[line]
-            else
-                bp_messages[line] = msg
-                breakpoints[line] = true
-            end
-        end,
-        ["breakpoints"] = function()
-            for line, enabled in pairs(breakpoints) do
-                print(("%d: %s %s"):format(line, enabled and "enabled" or "disabled", bp_messages[line] or ""))
-            end
-        end,
-        ["run"] = function()
-            if not program then
-                print("No program loaded")
-                return
-            elseif running then
-                print("Already running")
-                return
-            end
-
-            local lines = {}
-            for line in io.lines(program) do
-                table.insert(lines, line)
-            end
-
-            do
-                local offset = 0
-                for breakpoint, enabled in pairs(breakpoints) do
-                    if enabled then
-                        table.insert(lines, breakpoint + offset, "coroutine.yield({type=\"breakpoint\", line=" .. breakpoint .. ", message={" .. (bp_messages[breakpoint] or "") .. "}})")
-                        offset = offset + 1
-                    end
-                end
-            end
-
-            local chunk = table.concat(lines, "\n")
-            local func, err = load(chunk, program, "t", _G)
-            if not func then
-                print(err)
-                return
-            end
-
-            program_thread = coroutine.create(func)
-            running = true
-            continue(table.unpack(tokens))
-        end,
-        ["continue"] = function()
-            if not running then
-                print("Not running")
-                return
-            end
-            continue(table.unpack(tokens))
-        end,
-        ["stop"] = function()
-            running = false
-            program_thread = nil
-        end,
-        ["trace"] = function()
-            print(debug.traceback(program_thread))
-        end,
-        ["source"] = function()
-            local what = pop()
-
-            local file = io.open(program)
-            local lines = {}
-            for line in file:lines() do
-                table.insert(lines, line)
-            end
-            file:close()
-
-            local function print_source(line)
-                if breakpoints[line] then
-                    io.write("*")
-                else
-                    io.write(" ")
-                end
-                local fmt = "%" .. #tostring(#lines) .. "d: %s"
-                print(fmt:format(line, lines[line]))
-            end
-
-            if what then
-                print_source(tonumber(what))
-            else
-                for line = 1, #lines do
-                    print_source(line)
-                end
-            end
-        end
-    })
 end
