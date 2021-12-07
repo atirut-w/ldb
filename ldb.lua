@@ -191,6 +191,9 @@ do
     end)
 end
 
+print([[LDB Lua debugger
+Type "help" for help]])
+
 if args[1] then
     run_command("load", args[1])
 end
