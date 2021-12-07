@@ -91,8 +91,8 @@ You can also reference variables in the statements. Please note that when breakp
 This means that, for example, if you want to see the variable `str1`, you will have to set your breakpoint on the line just after the assignment.
 
 ```
+(ldb) bp 2 str1
 (ldb) run
-Program already running
 Breakpoint reached at line 2
 Breakpoint value: Hello, 
 ```
@@ -102,7 +102,6 @@ Multiple statements example:
 ```
 (ldb) bp 3 str1, str2
 (ldb) run
-Program already running
 Breakpoint reached at line 3
 Breakpoint value: {"Hello, ", "World!"}
 ```
