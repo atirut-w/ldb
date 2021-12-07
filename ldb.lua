@@ -5,6 +5,7 @@ if ({["-h"] = true, ["--help"] = true})[args[1]] then
     os.exit(0)
 end
 
+--- NOTE: I haveabsolutely no idea why I don't see people use this kind of lookup switch case in Lua.
 ---@param value any
 ---@param cases table<any, function>
 local function switch(value, cases)
@@ -55,6 +56,7 @@ register_command("quit", "Quits the debugger", "", function()
     os.exit(0)
 end)
 
+-- Core debugging commands are registered here.
 do
     ---@type string
     local program_name = nil
