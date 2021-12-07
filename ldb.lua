@@ -14,21 +14,30 @@ end
 
 ---@param t table
 local function dump(t)
-    io.write("{")
+    local buffer = ""
+
+    local function push(str) buffer = buffer .. str end
+
+    push("{")
     for i,v in ipairs(t) do
         switch(type(v), {
             string = function()
-                io.write(("%q"):format(v))
+                push(("%q"):format(v))
             end,
             table = function()
                 dump(v)
             end,
+            default = function()
+                push(tostring(v))
+            end
         })
         if i < #t then
-            io.write(", ")
+            push(", ")
         end
     end
-    print("}")
+    push("}")
+
+    return buffer
 end
 
 ---@class DebugCommand
@@ -151,7 +160,7 @@ do
 
     register_command("stop", "Stop the currently running program", "", function()
         if not program_thread then
-            print("No program running")
+            print("Not running")
         else
             program_thread = nil
         end
@@ -162,7 +171,7 @@ do
         -- Point: no need to document this command's arguments in the help.
 
         if not program_thread then
-            print("No program running")
+            print("Not running")
         else
             local success, result = coroutine.resume(program_thread, ...)
 
@@ -176,21 +185,31 @@ do
                         io.write("Breakpoint value: ")
                         if #result.message == 1 then
                             if type(result.message[1]) == "table" then
-                                dump(result.message[1])
+                                print(dump(result.message[1]))
                             else
                                 print(result.message[1])
                             end
                         elseif #result.message > 1 then
-                            dump(result.message)
+                            print(dump(result.message))
                         end
                     end
                 end
             else
                 -- Even if `success` is false, it can be because the program used `os.exit()` with values.
-                io.write("Program finished with possible error(s): ")
-                dump({result})
+                print("Program finished with possible error(s): " .. dump({result}))
+                run_command("trace")
                 run_command("stop")
             end
+        end
+    end)
+
+    register_command("trace", "Print the currently running program's trace", "", function()
+        if not program_thread then
+            print("Not running")
+        else
+            print("Trace:")
+            local trace = debug.traceback(program_thread)
+            print(trace:sub(#"stack traceback:\n" + 1))
         end
     end)
 end
