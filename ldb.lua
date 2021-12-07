@@ -196,6 +196,7 @@ do
                 end
             else
                 -- Even if `success` is false, it can be because the program used `os.exit()` with values.
+                -- TODO: Better error dumping.
                 print("Program finished with possible error(s): " .. dump({result}))
                 run_command("trace")
                 run_command("stop")
