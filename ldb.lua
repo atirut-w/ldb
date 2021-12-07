@@ -124,7 +124,7 @@ do
         line = tonumber(line)
         if ... then
             breakpoints[line] = true
-            bp_messages[line] = table.concat({...})
+            bp_messages[line] = table.concat({...}, " ")
         else
             breakpoints[line] = not breakpoints[line]
         end
