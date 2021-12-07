@@ -186,8 +186,10 @@ do
                     end
                 end
             else
+                -- Even if `success` is false, it can be because the program used `os.exit()` with values.
+                io.write("Program finished with possible error(s): ")
+                dump({result})
                 run_command("stop")
-                print("Program crashed: " .. result)
             end
         end
     end)
