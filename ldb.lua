@@ -141,6 +141,7 @@ do
             print("No program loaded")
         elseif program_thread then
             print("Program already running")
+            return
         end
         
         local lines = {}
